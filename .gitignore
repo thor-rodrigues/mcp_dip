@@ -1,2 +1,7 @@
+# Local packages and environment variables
 .venv
 .env
+
+# Python related
+.DS_Store
+__pycache__/
