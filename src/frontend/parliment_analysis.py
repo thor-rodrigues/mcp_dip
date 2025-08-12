@@ -2,6 +2,8 @@ import streamlit as st
 import asyncio
 from fastmcp import Client
 import os
+import json
+from datetime import datetime
 
 st.title(":material/how_to_vote: DIP Parliamentary Data MCP Server")
 st.markdown("""
@@ -100,6 +102,32 @@ if st.button(":material/search: Fetch Party Distribution", type="primary", use_c
                 # Raw data in expander
                 with st.expander("View Party Distribution JSON"):
                     st.json(results)
+
+                # Prepare download data with metadata
+                download_data = {
+                    "metadata": {
+                        "wahlperiode": wahlperiode,
+                        "wahlperiode_description": wahlperiode_options[wahlperiode],
+                        "total_members": total_members,
+                        "number_of_parties": len(party_dist),
+                        "generated_at": datetime.now().isoformat(),
+                        "source": "DIP (Dokumentations- und Informationssystem für Parlamentsmaterialien)"
+                    },
+                    "party_distribution": results
+                }
+                
+                # Generate filename with wahlperiode
+                filename = f"party_distribution_wahlperiode_{wahlperiode}.json"
+                
+                st.download_button(
+                    label=":material/file_download: Download Party Analysis as JSON",
+                    data=json.dumps(download_data, indent=2, ensure_ascii=False),
+                    file_name=filename,
+                    mime="application/json",
+                    type="primary",
+                    width="stretch",
+                    key="download_party_distribution_button"
+                )
                     
         except Exception as e:
             toast_msg.toast("MCP server connection failed!")
