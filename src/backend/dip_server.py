@@ -301,5 +301,78 @@ def get_party_distribution(
     return party_distribution
 
 
+@mcp.tool(
+    name="new_get_person",
+    description="Simplified version of get_person - basic search for German parliamentary members with optional name and wahlperiode filtering.",
+    tags={"DIP", "person", "simple"},
+)
+def new_get_person(name: str = None, wahlperiode: int = None) -> dict:
+    """
+    Simplified version of get_person that performs a basic search for German parliamentary members.
+    
+    This function fetches persons from the DIP API with optional name and wahlperiode filtering.
+    Returns the raw API response containing person data from the German Bundestag database.
+    
+    PARAMETERS:
+    - name (optional): Name to search for. Searches both first and last names.
+                      Can be a single word (e.g., "Merkel") or full name in "Nachname Vorname" format
+                      (e.g., "Steinmeier Frank Walter" for Frank-Walter Steinmeier).
+                      If not provided, returns all persons.
+    - wahlperiode (optional): Electoral period number to filter by (e.g., 21 for current period).
+                             Selects only persons assigned to the specified electoral period.
+                             Current period is 21, historical periods available from 1.
+                             Note: 21 is the last available period - numbers above 21 are not allowed.
+                             If not provided, returns persons from all periods.
+    
+    RESPONSE FORMAT:
+    Returns a dictionary with:
+    - numFound: Total number of matching persons
+    - cursor: Pagination cursor for next page
+    - documents: Array of person objects with basic information
+    
+    EXAMPLE USAGE:
+    # Get all persons
+    result = new_get_person()
+    
+    # Search by last name
+    result = new_get_person("Merkel")
+    
+    # Search by full name
+    result = new_get_person("Steinmeier Frank Walter")
+    
+    # Get all current Bundestag members (period 21)
+    result = new_get_person(wahlperiode=21)
+    
+    # Search for specific person in current period
+    result = new_get_person("Merkel", wahlperiode=21)
+    
+    # Process results
+    print(f"Found {result['numFound']} persons")
+    for person in result['documents']:
+        print(f"{person['vorname']} {person['nachname']}")
+    """
+    if not DIP_API_KEY:
+        raise RuntimeError("Missing API key: set DIP_API_KEY in the environment or .env file.")
+
+    # Simple parameters - format, API key, and optional filters
+    params = {
+        "format": "json", 
+        "apikey": DIP_API_KEY
+    }
+    
+    # Add name filter if provided
+    if name:
+        params["f.person"] = [name]
+    
+    # Add wahlperiode filter if provided
+    if wahlperiode:
+        params["f.wahlperiode"] = [wahlperiode]
+
+    url = f"{BASE_URL}/person"
+    resp = requests.get(url, params=params, timeout=30)
+    resp.raise_for_status()
+    return resp.json()
+
+
 if __name__ == "__main__":
     mcp.run()
