@@ -1,0 +1,17 @@
+[theme]
+base="light"
+primaryColor="#FD5109"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+borderColor = "#EEEEEE"
+codeBackgroundColor = "#EEEEEE"
+textColor="#000000"
+font = "Inter, sans-serif, serif"
+baseRadius = "small"
+showWidgetBorder = true
+
+[[theme.fontFaces]]
+family = "Inter"
+url = "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+weight = 400
+style = "normal"
