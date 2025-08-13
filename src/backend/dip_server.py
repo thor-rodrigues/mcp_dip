@@ -170,9 +170,24 @@ def get_party_distribution(wahlperiode: int) -> list:
     RESPONSE FORMAT:
     Returns a list of party statistics sorted by count (descending):
     [
-        {"fraktion": "AfD", "count": 148, "percentage": 30.83},
-        {"fraktion": "BÜNDNIS 90/DIE GRÜNEN", "count": 78, "percentage": 16.25},
-        {"fraktion": "SPD", "count": 65, "percentage": 13.54}
+        {
+            "fraktion": "AfD", 
+            "count": 148, 
+            "percentage": 30.83,
+            "members": ["Alice Weidel", "Alexander Gauland", ...]
+        },
+        {
+            "fraktion": "BÜNDNIS 90/DIE GRÜNEN", 
+            "count": 78, 
+            "percentage": 16.25,
+            "members": ["Annalena Baerbock", "Robert Habeck", ...]
+        },
+        {
+            "fraktion": "SPD", 
+            "count": 65, 
+            "percentage": 13.54,
+            "members": ["Olaf Scholz", "Lars Klingbeil", ...]
+        }
     ]
     
     EXAMPLE USAGE:
@@ -185,6 +200,7 @@ def get_party_distribution(wahlperiode: int) -> list:
     # Process results
     for party in result:
         print(f"{party['fraktion']}: {party['count']} members ({party['percentage']}%)")
+        print(f"Members: {', '.join(party['members'][:5])}{'...' if len(party['members']) > 5 else ''}")
     """
     if not DIP_API_KEY:
         raise RuntimeError("Missing API key: set DIP_API_KEY in the environment or .env file.")
@@ -223,8 +239,8 @@ def get_party_distribution(wahlperiode: int) -> list:
         if pages_fetched > 100:  # Reasonable safety limit
             break
     
-    # Calculate party distribution
-    party_counts = {}
+    # Calculate party distribution and collect member names
+    party_data = {}
     total_members = len(all_members)
     
     for member in all_members:
@@ -252,17 +268,42 @@ def get_party_distribution(wahlperiode: int) -> list:
         # Default to "Unbekannt" if no party found
         if not party:
             party = "Unbekannt"
-            
-        party_counts[party] = party_counts.get(party, 0) + 1
+        
+        # Initialize party data if not exists
+        if party not in party_data:
+            party_data[party] = {
+                "count": 0,
+                "members": []
+            }
+        
+        # Increment count and add member name
+        party_data[party]["count"] += 1
+        
+        # Get member name (handle both vorname/nachname and name fields)
+        vorname = member.get('vorname', '').strip()
+        nachname = member.get('nachname', '').strip()
+        
+        if vorname and nachname:
+            member_name = f"{vorname} {nachname}"
+        elif nachname:
+            member_name = nachname
+        elif vorname:
+            member_name = vorname
+        else:
+            # Fallback to other name fields if available
+            member_name = member.get('name', 'Unknown Name')
+        
+        party_data[party]["members"].append(member_name)
     
     # Calculate percentages and sort by count (descending)
     party_distribution = []
-    for party, count in sorted(party_counts.items(), key=lambda x: (-x[1], x[0])):
-        percentage = round((count / total_members) * 100.0, 2) if total_members > 0 else 0.0
+    for party, data in sorted(party_data.items(), key=lambda x: (-x[1]["count"], x[0])):
+        percentage = round((data["count"] / total_members) * 100.0, 2) if total_members > 0 else 0.0
         party_distribution.append({
             "fraktion": party,
-            "count": count,
-            "percentage": percentage
+            "count": data["count"],
+            "percentage": percentage,
+            "members": sorted(data["members"])  # Sort member names alphabetically
         })
     
     return party_distribution
