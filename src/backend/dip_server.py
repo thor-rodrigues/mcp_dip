@@ -17,7 +17,10 @@ mcp = FastMCP(
     which contains comprehensive data about parliamentary proceedings, members, and legislative documents.
     
     Current tools available:
+    - add_numbers: Simple tool to add two integers together (for testing)
+    - subtract_numbers: Simple tool to subtract two integers (for testing)
     - get_person: Retrieve parliament member information and biographical data
+    - get_party_distribution: Get party distribution for a specific electoral period
     
     For analysing party distribution in the German parliament, use get_person with wahlperiode filters.
     The system supports the current electoral period (21) and historical periods.
@@ -31,6 +34,26 @@ BASE_URL = "https://search.dip.bundestag.de/api/v1"
 
 # API key from environment
 DIP_API_KEY = os.getenv("DIP_API_KEY")
+
+
+@mcp.tool(
+    name="add_numbers",
+    description="Adds two integer numbers together.",
+    tags={"math", "basic"},
+)
+def add(a: int, b: int) -> int:
+    """Adds two integer numbers together."""
+    return a + b
+
+
+@mcp.tool(
+    name="subtract_numbers", 
+    description="Subtracts two integer numbers together.",
+    tags={"math", "basic"},
+)
+def subtract(a: int, b: int) -> int:
+    """Subtracts two integer numbers together."""
+    return a - b
 
 
 @mcp.tool(
