@@ -103,7 +103,7 @@ if st.button(":material/search: Fetch Party Distribution", type="primary", use_c
                 with st.expander("View Party Distribution JSON"):
                     st.json(results)
 
-                # Prepare download data with metadata
+                # Prepare download data with enhanced metadata
                 download_data = {
                     "metadata": {
                         "wahlperiode": wahlperiode,
@@ -111,7 +111,20 @@ if st.button(":material/search: Fetch Party Distribution", type="primary", use_c
                         "total_members": total_members,
                         "number_of_parties": len(party_dist),
                         "generated_at": datetime.now().isoformat(),
-                        "source": "DIP (Dokumentations- und Informationssystem für Parlamentsmaterialien)"
+                        "source": "DIP (Dokumentations- und Informationssystem für Parlamentsmaterialien)",
+                        "data_includes": "Complete member lists with names for each party",
+                        "largest_party": {
+                            "name": party_dist[0]['fraktion'] if party_dist else None,
+                            "members": party_dist[0]['count'] if party_dist else 0,
+                            "percentage": party_dist[0]['percentage'] if party_dist else 0
+                        } if party_dist else None,
+                        "party_summary": [
+                            {
+                                "fraktion": party['fraktion'],
+                                "member_count": party['count'],
+                                "percentage": party['percentage']
+                            } for party in party_dist
+                        ]
                     },
                     "party_distribution": results
                 }
