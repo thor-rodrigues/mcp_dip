@@ -1,9 +1,7 @@
 import os
 import requests
-from typing import Optional, List, Literal, Union, Annotated
 
 from fastmcp import FastMCP
-from pydantic import Field
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -13,9 +11,9 @@ load_dotenv()
 mcp = FastMCP(
     name="DIP Parliamentary Data Server",
     instructions="""
-    This server provides access to the German Bundestag's DIP (Dokumentations- und Informationssystem für
-    Parlamentsmaterialien) API, which contains comprehensive data about parliamentary proceedings, members,
-    and legislative documents.
+    This server provides access to the German Bundestag's DIP (Dokumentations- und
+    Informationssystem für Parlamentsmaterialien) API, which contains comprehensive
+    data about parliamentary proceedings, members, and legislative documents.
     
     Current tools available:
     - add_numbers: Simple tool to add two integers together (for testing)
@@ -34,139 +32,23 @@ BASE_URL = "https://search.dip.bundestag.de/api/v1"
 DIP_API_KEY = os.getenv("DIP_API_KEY")
 
 
-@mcp.tool(
-    name="add_numbers",
-    description="Adds two integer numbers together.",
-    tags={"math", "basic"},
-)
+@mcp.tool(name="add_numbers", description="Adds two integer numbers together.")
 def add(a: int, b: int) -> int:
     """Adds two integer numbers together."""
     return a + b
 
 
-@mcp.tool(
-    name="subtract_numbers", 
-    description="Subtracts two integer numbers together.",
-    tags={"math", "basic"},
-)
+@mcp.tool(name="subtract_numbers", description="Subtracts two integer numbers together.")
 def subtract(a: int, b: int) -> int:
     """Subtracts two integer numbers together."""
     return a - b
 
 
 @mcp.tool(
-    name="get_party_distribution",
-    description="Get party distribution for a Wahlperiode. Fetches ALL parliamentary members and calculates precise party percentages.",
-    tags={"DIP", "analysis", "party"},
-)
-def get_party_distribution(
-    wahlperiode: Annotated[int, Field(
-        description="Electoral period number. Current period is 21, historical periods available from 1."
-    )],
-) -> list:
-    """
-    Get party distribution for Bundestag members in a specific Wahlperiode.
-    
-    This tool automatically:
-    - Filters for BUNDESTAG-ONLY members (excludes Bundesrat, Bundesversammlung, Europakammer)
-    - Handles pagination to retrieve every single Bundestag member 
-    - Calculates accurate party distribution percentages
-    
-    Returns a list of party statistics in the format:
-    [
-        {"fraktion": "AfD", "count": 148, "percentage": 30.83},
-        {"fraktion": "BÜNDNIS 90/DIE GRÜNEN", "count": 78, "percentage": 16.25}
-    ]
-    
-    Important: Only includes Bundestag (BT) members, not Bundesrat (BR) or other institutions.
-    """
-    if not DIP_API_KEY:
-        raise RuntimeError("Missing API key: set DIP_API_KEY in the environment or .env file.")
-
-    all_members = []
-    cursor = None
-    pages_fetched = 0
-    
-    # Fetch all pages until no more data
-    while True:
-        params = {
-            "format": "json", 
-            "apikey": DIP_API_KEY,
-            "f.wahlperiode": [wahlperiode],
-            "f.zuordnung": "BT"  # Only Bundestag members, not Bundesrat/etc
-        }
-        if cursor:
-            params["cursor"] = cursor
-            
-        url = f"{BASE_URL}/person"
-        resp = requests.get(url, params=params, timeout=30)
-        resp.raise_for_status()
-        data = resp.json()
-        
-        # Add members from this page
-        documents = data.get('documents', [])
-        all_members.extend(documents)
-        pages_fetched += 1
-        
-        # Check if we need to continue
-        new_cursor = data.get('cursor')
-        if not new_cursor or new_cursor == cursor:
-            break
-        cursor = new_cursor
-        
-        # Safety check to prevent infinite loops
-        if pages_fetched > 100:  # Reasonable safety limit
-            break
-    
-    # Calculate party distribution
-    party_counts = {}
-    total_members = len(all_members)
-    
-    for member in all_members:
-        # Get party affiliation - handle both direct and role-based
-        party = None
-        
-        # First check direct fraktion field
-        fraktion = member.get('fraktion', [])
-        if isinstance(fraktion, list) and fraktion:
-            party = fraktion[0]  # Take first party if multiple
-        elif isinstance(fraktion, str):
-            party = fraktion
-            
-        # If no direct party, check person_roles for this Wahlperiode
-        if not party:
-            roles = member.get('person_roles', []) or []
-            for role in roles:
-                role_periods = role.get('wahlperiode_nummer', []) or []
-                if wahlperiode in role_periods:
-                    role_party = role.get('fraktion')
-                    if role_party:
-                        party = role_party
-                        break
-        
-        # Default to "Unbekannt" if no party found
-        if not party:
-            party = "Unbekannt"
-            
-        party_counts[party] = party_counts.get(party, 0) + 1
-    
-    # Calculate percentages and sort by count (descending)
-    party_distribution = []
-    for party, count in sorted(party_counts.items(), key=lambda x: (-x[1], x[0])):
-        percentage = round((count / total_members) * 100.0, 2) if total_members > 0 else 0.0
-        party_distribution.append({
-            "fraktion": party,
-            "count": count,
-            "percentage": percentage
-        })
-    
-    return party_distribution
-
-
-@mcp.tool(
     name="get_person",
-    description="Search for German parliamentary members with optional name, wahlperiode, and cursor parameters.",
-    tags={"DIP", "person"},
+    description="""
+    Search for German parliamentary members with optional name, wahlperiode, and cursor parameters.
+    """,
 )
 def get_person(name: str = None, wahlperiode: int = None, cursor: str = None) -> dict:
     """
@@ -249,6 +131,128 @@ def get_person(name: str = None, wahlperiode: int = None, cursor: str = None) ->
     resp = requests.get(url, params=params, timeout=30)
     resp.raise_for_status()
     return resp.json()
+
+
+@mcp.tool(
+    name="get_party_distribution",
+    description="""
+    Get party distribution for a Wahlperiode. Fetches ALL parliamentary members and
+    calculates precise party percentages.
+    """,
+)
+def get_party_distribution(wahlperiode: int) -> list:
+    """
+    Get party distribution for parliamentary members in a specific Wahlperiode.
+    
+    This function automatically:
+    - Fetches ALL parliamentary members from the specified electoral period
+    - Handles pagination to retrieve every single member across all pages
+    - Calculates accurate party distribution percentages
+    
+    PARAMETERS:
+    - wahlperiode: Electoral period number to analyze (e.g., 21 for current period).
+                  Current period is 21, historical periods available from 1.
+                  Note: 21 is the last available period - numbers above 21 are not allowed.
+    
+    RESPONSE FORMAT:
+    Returns a list of party statistics sorted by count (descending):
+    [
+        {"fraktion": "AfD", "count": 148, "percentage": 30.83},
+        {"fraktion": "BÜNDNIS 90/DIE GRÜNEN", "count": 78, "percentage": 16.25},
+        {"fraktion": "SPD", "count": 65, "percentage": 13.54}
+    ]
+    
+    EXAMPLE USAGE:
+    # Get current party distribution
+    result = get_party_distribution(21)
+    
+    # Get historical party distribution  
+    result = get_party_distribution(20)
+    
+    # Process results
+    for party in result:
+        print(f"{party['fraktion']}: {party['count']} members ({party['percentage']}%)")
+    """
+    if not DIP_API_KEY:
+        raise RuntimeError("Missing API key: set DIP_API_KEY in the environment or .env file.")
+
+    all_members = []
+    cursor = None
+    pages_fetched = 0
+    
+    # Fetch all pages until no more data
+    while True:
+        params = {
+            "format": "json", 
+            "apikey": DIP_API_KEY,
+            "f.wahlperiode": [wahlperiode]
+        }
+        if cursor:
+            params["cursor"] = cursor
+            
+        url = f"{BASE_URL}/person"
+        resp = requests.get(url, params=params, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        
+        # Add members from this page
+        documents = data.get('documents', [])
+        all_members.extend(documents)
+        pages_fetched += 1
+        
+        # Check if we need to continue
+        new_cursor = data.get('cursor')
+        if not new_cursor or new_cursor == cursor:
+            break
+        cursor = new_cursor
+        
+        # Safety check to prevent infinite loops
+        if pages_fetched > 100:  # Reasonable safety limit
+            break
+    
+    # Calculate party distribution
+    party_counts = {}
+    total_members = len(all_members)
+    
+    for member in all_members:
+        # Get party affiliation - handle both direct and role-based
+        party = None
+        
+        # First check direct fraktion field
+        fraktion = member.get('fraktion', [])
+        if isinstance(fraktion, list) and fraktion:
+            party = fraktion[0]  # Take first party if multiple
+        elif isinstance(fraktion, str):
+            party = fraktion
+            
+        # If no direct party, check person_roles for this Wahlperiode
+        if not party:
+            roles = member.get('person_roles', []) or []
+            for role in roles:
+                role_periods = role.get('wahlperiode_nummer', []) or []
+                if wahlperiode in role_periods:
+                    role_party = role.get('fraktion')
+                    if role_party:
+                        party = role_party
+                        break
+        
+        # Default to "Unbekannt" if no party found
+        if not party:
+            party = "Unbekannt"
+            
+        party_counts[party] = party_counts.get(party, 0) + 1
+    
+    # Calculate percentages and sort by count (descending)
+    party_distribution = []
+    for party, count in sorted(party_counts.items(), key=lambda x: (-x[1], x[0])):
+        percentage = round((count / total_members) * 100.0, 2) if total_members > 0 else 0.0
+        party_distribution.append({
+            "fraktion": party,
+            "count": count,
+            "percentage": percentage
+        })
+    
+    return party_distribution
 
 
 if __name__ == "__main__":
