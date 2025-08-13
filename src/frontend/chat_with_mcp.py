@@ -15,7 +15,7 @@ load_dotenv()
 
 def get_api_key(key_name: str) -> str:
     """
-    Get API key from st.secrets with os.getenv() as fallback.
+    Get API key from st.secrets.
     
     Args:
         key_name: The name of the API key to retrieve
@@ -24,17 +24,12 @@ def get_api_key(key_name: str) -> str:
         The API key value
         
     Raises:
-        RuntimeError: If the key is not found in either st.secrets or environment variables
+        RuntimeError: If the key is not found in st.secrets
     """
     try:
-        # Try st.secrets first
         return st.secrets[key_name]
     except (KeyError, AttributeError):
-        # Fall back to environment variables
-        value = os.getenv(key_name)
-        if value is None:
-            raise RuntimeError(f"Missing API key: {key_name} not found in st.secrets or environment variables")
-        return value
+        raise RuntimeError(f"Missing API key: {key_name} not found in st.secrets")
 
 st.title(":material/chat: Chat with MCP")
 st.write("Interact with an LLM with access to the DIP MCP server.")
@@ -129,7 +124,7 @@ def setup_chatbot():
             print(f"{person['vorname']} {person['nachname']}")
         """
 
-        # API key from st.secrets with fallback to environment
+        # API key from st.secrets
         DIP_API_KEY = get_api_key("DIP_API_KEY")
         
         # Base URL
@@ -193,7 +188,7 @@ def setup_chatbot():
             print(f"{party['fraktion']}: {party['count']} members ({party['percentage']}%)")
         """
 
-        # API key from st.secrets with fallback to environment
+        # API key from st.secrets
         DIP_API_KEY = get_api_key("DIP_API_KEY")
 
         all_members = []

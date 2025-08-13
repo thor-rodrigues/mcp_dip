@@ -145,4 +145,4 @@ if st.button(":material/search: Fetch Party Distribution", type="primary", use_c
         except Exception as e:
             toast_msg.toast("MCP server connection failed!")
             st.error(f"Failed to connect to MCP server: {str(e)}")
-            st.info("Make sure your .env file contains the DIP_API_KEY")
+            st.info("Make sure your st.secrets contains the DIP_API_KEY")

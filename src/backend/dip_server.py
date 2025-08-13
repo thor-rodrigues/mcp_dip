@@ -1,11 +1,27 @@
 import os
 import requests
+import streamlit as st
 
 from fastmcp import FastMCP
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+
+def get_api_key(key_name: str) -> str:
+    """
+    Get API key from st.secrets.
+    
+    Args:
+        key_name: The name of the API key to retrieve
+        
+    Returns:
+        The API key value
+        
+    Raises:
+        RuntimeError: If the key is not found in st.secrets
+    """
+    try:
+        return st.secrets[key_name]
+    except (KeyError, AttributeError):
+        raise RuntimeError(f"Missing API key: {key_name} not found in st.secrets")
 
 
 mcp = FastMCP(
@@ -29,8 +45,8 @@ mcp = FastMCP(
     """
 )
 
-# API key from environment
-DIP_API_KEY = os.getenv("DIP_API_KEY")
+# API key from st.secrets
+DIP_API_KEY = get_api_key("DIP_API_KEY")
 
 
 @mcp.tool(name="add_numbers", description="Adds two integer numbers together.")
@@ -120,7 +136,7 @@ def get_person(name: str = None, wahlperiode: int = None, cursor: str = None) ->
         print(f"{person['vorname']} {person['nachname']}")
     """
     if not DIP_API_KEY:
-        raise RuntimeError("Missing API key: set DIP_API_KEY in the environment or .env file.")
+        raise RuntimeError("Missing API key: set DIP_API_KEY in st.secrets.")
 
     # Simple parameters - format, API key, and optional filters
     params = {
@@ -203,7 +219,7 @@ def get_party_distribution(wahlperiode: int) -> list:
         print(f"Members: {', '.join(party['members'][:5])}{'...' if len(party['members']) > 5 else ''}")
     """
     if not DIP_API_KEY:
-        raise RuntimeError("Missing API key: set DIP_API_KEY in the environment or .env file.")
+        raise RuntimeError("Missing API key: set DIP_API_KEY in st.secrets.")
 
     all_members = []
     cursor = None
