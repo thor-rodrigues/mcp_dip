@@ -13,8 +13,9 @@ load_dotenv()
 mcp = FastMCP(
     name="DIP Parliamentary Data Server",
     instructions="""
-    This server provides access to the German Bundestag's DIP (Dokumentations- und Informationssystem) API,
-    which contains comprehensive data about parliamentary proceedings, members, and legislative documents.
+    This server provides access to the German Bundestag's DIP (Dokumentations- und Informationssystem für
+    Parlamentsmaterialien) API, which contains comprehensive data about parliamentary proceedings, members,
+    and legislative documents.
     
     Current tools available:
     - add_numbers: Simple tool to add two integers together (for testing)
@@ -22,10 +23,7 @@ mcp = FastMCP(
     - get_person: Retrieve parliament member information and biographical data
     - get_party_distribution: Get party distribution for a specific electoral period
     
-    For analysing party distribution in the German parliament, use get_person with wahlperiode filters.
     The system supports the current electoral period (21) and historical periods.
-    
-    All data comes from the official Bundestag database and is updated regularly.
     """
 )
 
@@ -54,142 +52,6 @@ def add(a: int, b: int) -> int:
 def subtract(a: int, b: int) -> int:
     """Subtracts two integer numbers together."""
     return a - b
-
-
-@mcp.tool(
-    name="get_person",
-    description="Call DIP GET /person with optional filters; returns raw API response.",
-    tags={"DIP", "person"},
-)
-def get_person(
-    # Filters (map to DIP parameters)
-    person: Annotated[Optional[List[str]], Field(
-        description="Name search terms for a person. Searches both first name and last name. "
-                   "Can be repeated to search multiple names (OR search). "
-                   "Single word search for complete name parts possible. "
-                   "Multiple search terms are searched as phrase in order 'Nachname Vorname'. "
-                   "Example: ['Steinmeier Frank Walter']"
-    )] = None,
-    
-    id: Annotated[Optional[List[int]], Field(
-        description="Entity IDs to select. Can be repeated to select multiple entities. "
-                   "Use for direct lookup of specific persons by their DIP database ID."
-    )] = None,
-    
-    wahlperiode: Annotated[Optional[List[int]], Field(
-        description="Electoral period numbers (Wahlperioden). Selects all entities assigned to the specified "
-                   "electoral period. Can be repeated to select multiple periods (OR search). "
-                   "Current period is 21, historical periods available from 1. "
-                   "Example: [20, 21] for periods 20 and 21"
-    )] = None,
-    
-    aktualisiert_start: Annotated[Optional[str], Field(
-        description="Earliest update date of the entity. Selects entities in a date range "
-                   "based on the last update date. ISO 8601 format (YYYY-MM-DDTHH:MM:SS). "
-                   "Examples: '2022-12-06T10:00:00' or '2022-12-06T10:00:00+02:00' with timezone"
-    )] = None,
-    
-    aktualisiert_end: Annotated[Optional[str], Field(
-        description="Latest update date of the entity. Selects entities in a date range "
-                   "based on the last update date. ISO 8601 format (YYYY-MM-DDTHH:MM:SS). "
-                   "Examples: '2022-12-06T20:00:00' or '2022-12-06T20:00:00+02:00' with timezone"
-    )] = None,
-    
-    datum_start: Annotated[Optional[str], Field(
-        description="Earliest document date. Selects entities in a date range based on document date. "
-                   "For persons, the date range of all associated documents is used. "
-                   "Format: YYYY-MM-DD. Example: '2021-01-11'"
-    )] = None,
-    
-    datum_end: Annotated[Optional[str], Field(
-        description="Latest document date. Selects entities in a date range based on document date. "
-                   "For persons, the date range of all associated documents is used. "
-                   "Format: YYYY-MM-DD. Example: '2021-01-15'"
-    )] = None,
-
-    # Institutional filtering
-    zuordnung: Annotated[Optional[Literal["BT", "BR", "BV", "EK"]], Field(
-        description="Institution assignment filter. BT=Bundestag, BR=Bundesrat, BV=Bundesversammlung, EK=Europakammer. "
-                   "For party distribution analysis of the German Parliament, use 'BT' to get only Bundestag members."
-    )] = None,
-
-    # Pagination and format
-    cursor: Annotated[Optional[str], Field(
-        description="Cursor position for requesting additional entities. If the number of found entities "
-                   "exceeds the limit, a follow-up request must be made to load more entities. "
-                   "Use the cursor value from the previous response. Continue until cursor stops changing."
-    )] = None,
-    
-    format: Annotated[Literal["json", "xml"], Field(
-        description="Controls the data format of the response. JSON (default) or XML available."
-    )] = "json",
-) -> Union[dict, str]:
-    """
-    Retrieve German parliamentary member data from the DIP (Dokumentations- und Informationssystem) API.
-    
-    This tool accesses the official German Bundestag database containing information about 
-    parliament members (MdB = Mitglied des Bundestages), including their names, party affiliations,
-    electoral periods, and biographical data.
-    
-    USE CASES:
-    - Find parliament members by name or party affiliation
-    - Get member lists for specific electoral periods (Wahlperioden)
-    - Analyse party composition and distribution
-    - Research parliamentary member biographical information
-    
-    PARAMETERS:
-    - person: List of name search terms (searches both first and last names)
-    - id: List of specific person IDs for direct lookup
-    - wahlperiode: List of electoral periods (e.g., [20, 21] for periods 20 and 21)
-    - zuordnung: Institution filter ('BT'=Bundestag, 'BR'=Bundesrat, 'BV'=Bundesversammlung, 'EK'=Europakammer)
-    - aktualisiert_start/end: Filter by last update date (ISO 8601 format)
-    - datum_start/end: Filter by document dates (YYYY-MM-DD format)
-    - cursor: For pagination - use the cursor from previous response to get next page
-    - format: Response format ('json' recommended, 'xml' also available)
-    
-    RESPONSE FORMAT:
-    Returns a dictionary with:
-    - numFound: Total number of matching persons
-    - cursor: Pagination cursor for next page
-    - documents: Array of person objects with fields like:
-      * id, nachname, vorname, titel (name information)
-      * fraktion, funktion (party and role information) 
-      * wahlperiode (electoral periods served)
-      * person_roles (detailed role history)
-    
-    EXAMPLES:
-    - Get all current Bundestag members: get_person(wahlperiode=[21], zuordnung="BT")
-    - Get all current Bundesrat members: get_person(wahlperiode=[21], zuordnung="BR")
-    - Search by name: get_person(person=["Merkel"])
-    - Get specific person: get_person(id=[123])
-    """
-    if not DIP_API_KEY:
-        raise RuntimeError("Missing API key: set DIP_API_KEY in the environment or .env file.")
-
-    params: dict = {"format": format, "apikey": DIP_API_KEY}
-    if person:
-        params["f.person"] = person
-    if id:
-        params["f.id"] = id
-    if wahlperiode:
-        params["f.wahlperiode"] = wahlperiode
-    if aktualisiert_start:
-        params["f.aktualisiert.start"] = aktualisiert_start
-    if aktualisiert_end:
-        params["f.aktualisiert.end"] = aktualisiert_end
-    if datum_start:
-        params["f.datum.start"] = datum_start
-    if datum_end:
-        params["f.datum.end"] = datum_end
-    if zuordnung:
-        params["f.zuordnung"] = zuordnung
-    if cursor:
-        params["cursor"] = cursor
-
-    url = f"{BASE_URL}/person"
-    resp = requests.get(url, params=params, timeout=30)
-    resp.raise_for_status()
-    return resp.json() if format == "json" else resp.text
 
 
 @mcp.tool(
@@ -302,15 +164,16 @@ def get_party_distribution(
 
 
 @mcp.tool(
-    name="new_get_person",
-    description="Simplified version of get_person - basic search for German parliamentary members with optional name and wahlperiode filtering.",
-    tags={"DIP", "person", "simple"},
+    name="get_person",
+    description="Search for German parliamentary members with optional name, wahlperiode, and cursor parameters.",
+    tags={"DIP", "person"},
 )
-def new_get_person(name: str = None, wahlperiode: int = None) -> dict:
+def get_person(name: str = None, wahlperiode: int = None, cursor: str = None) -> dict:
     """
-    Simplified version of get_person that performs a basic search for German parliamentary members.
+    Search for German parliamentary members from the DIP (Dokumentations- und Informationssystem für
+    Parlamentsmaterialien) API.
     
-    This function fetches persons from the DIP API with optional name and wahlperiode filtering.
+    This function fetches persons from the DIP API with optional name, wahlperiode, and cursor filtering.
     Returns the raw API response containing person data from the German Bundestag database.
     
     PARAMETERS:
@@ -323,28 +186,38 @@ def new_get_person(name: str = None, wahlperiode: int = None) -> dict:
                              Current period is 21, historical periods available from 1.
                              Note: 21 is the last available period - numbers above 21 are not allowed.
                              If not provided, returns persons from all periods.
+    - cursor (optional): Pagination cursor for requesting additional results. Use the cursor value
+                        from a previous response to get the next page of results. When the number
+                        of found entities exceeds the limit, use this to load more entities.
+                        Continue until the cursor stops changing to get all results.
+                        If not provided, returns the first page of results.
     
     RESPONSE FORMAT:
     Returns a dictionary with:
     - numFound: Total number of matching persons
-    - cursor: Pagination cursor for next page
+    - cursor: Pagination cursor for next page (use this for subsequent requests)
     - documents: Array of person objects with basic information
     
     EXAMPLE USAGE:
     # Get all persons
-    result = new_get_person()
+    result = get_person()
     
     # Search by last name
-    result = new_get_person("Merkel")
+    result = get_person("Merkel")
     
     # Search by full name
-    result = new_get_person("Steinmeier Frank Walter")
+    result = get_person("Steinmeier Frank Walter")
     
     # Get all current Bundestag members (period 21)
-    result = new_get_person(wahlperiode=21)
+    result = get_person(wahlperiode=21)
     
     # Search for specific person in current period
-    result = new_get_person("Merkel", wahlperiode=21)
+    result = get_person("Merkel", wahlperiode=21)
+    
+    # Pagination example - get next page of results
+    first_page = get_person(wahlperiode=21)
+    if first_page['cursor']:
+        next_page = get_person(wahlperiode=21, cursor=first_page['cursor'])
     
     # Process results
     print(f"Found {result['numFound']} persons")
@@ -367,6 +240,10 @@ def new_get_person(name: str = None, wahlperiode: int = None) -> dict:
     # Add wahlperiode filter if provided
     if wahlperiode:
         params["f.wahlperiode"] = [wahlperiode]
+    
+    # Add cursor for pagination if provided
+    if cursor:
+        params["cursor"] = cursor
 
     url = f"{BASE_URL}/person"
     resp = requests.get(url, params=params, timeout=30)
