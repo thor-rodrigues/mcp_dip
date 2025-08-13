@@ -14,10 +14,14 @@ mcp = FastMCP(
     This server provides access to the German Bundestag's DIP (Dokumentations- und
     Informationssystem für Parlamentsmaterialien) API, which contains comprehensive
     data about parliamentary proceedings, members, and legislative documents.
+
+    This MCP server also includes tools for basic arithmetic operations
     
     Current tools available:
-    - add_numbers: Simple tool to add two integers together (for testing)
-    - subtract_numbers: Simple tool to subtract two integers (for testing)
+    - add_numbers: Simple tool to add two integers together
+    - subtract_numbers: Simple tool to subtract two integers
+    - multiply_numbers: Simple tool to multiply two integers
+    - divide_numbers: Simple tool to divide two integers
     - get_person: Retrieve parliament member information and biographical data
     - get_party_distribution: Get party distribution for a specific electoral period
     
@@ -42,6 +46,18 @@ def add(a: int, b: int) -> int:
 def subtract(a: int, b: int) -> int:
     """Subtracts two integer numbers together."""
     return a - b
+
+
+@mcp.tool(name="multiply_numbers", description="Multiplies two integer numbers together.")
+def multiply(a: int, b: int) -> int:
+    """Multiplies two integer numbers together."""
+    return a * b
+
+
+@mcp.tool(name="divide_numbers", description="Divides two integer numbers together.")
+def divide(a: int, b: int) -> int:
+    """Divides two integer numbers together."""
+    return a / b
 
 
 @mcp.tool(
