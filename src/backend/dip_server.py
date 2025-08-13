@@ -29,9 +29,6 @@ mcp = FastMCP(
     """
 )
 
-# Base URL per official OpenAPI
-BASE_URL = "https://search.dip.bundestag.de/api/v1"
-
 # API key from environment
 DIP_API_KEY = os.getenv("DIP_API_KEY")
 
@@ -143,7 +140,7 @@ def get_person(name: str = None, wahlperiode: int = None, cursor: str = None) ->
     if cursor:
         params["cursor"] = cursor
 
-    url = f"{BASE_URL}/person"
+    url = f"https://search.dip.bundestag.de/api/v1/person"
     resp = requests.get(url, params=params, timeout=30)
     resp.raise_for_status()
     return resp.json()
@@ -206,7 +203,7 @@ def get_party_distribution(wahlperiode: int) -> list:
         if cursor:
             params["cursor"] = cursor
             
-        url = f"{BASE_URL}/person"
+        url = f"https://search.dip.bundestag.de/api/v1/person"
         resp = requests.get(url, params=params, timeout=30)
         resp.raise_for_status()
         data = resp.json()
